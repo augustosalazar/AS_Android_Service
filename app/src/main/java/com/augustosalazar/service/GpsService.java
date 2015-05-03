@@ -1,6 +1,8 @@
 package com.augustosalazar.service;
 
+import android.app.Notification;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -94,7 +96,7 @@ public class GpsService extends Service{
     {
         Log.e(TAG, "onCreate");
         initializeLocationManager();
-
+        showNotification();
 
         try {
             mLocationManager.requestLocationUpdates(
@@ -129,7 +131,22 @@ public class GpsService extends Service{
                 }
             }
         }
+        mNotificationManager.cancel(R.mipmap.ic_launcher); // Cancel the persistent notification
     }
+
+    private void showNotification() {
+        mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        // Set the icon, scrolling text and timestamp
+        Notification notification = new Notification(R.mipmap.ic_launcher, "Servicio Iniciado", System.currentTimeMillis());
+        // The PendingIntent to launch our activity if the user selects this notification
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
+        // Set the info for the views that show in the notification panel.
+        notification.setLatestEventInfo(this, "Service", "Servicio Iniciado", contentIntent);
+        // Send the notification.
+        // We use a layout id because it is a unique number.  We use it later to cancel.
+        mNotificationManager.notify(R.mipmap.ic_launcher, notification);
+    }
+
     private void initializeLocationManager() {
         Log.e(TAG, "initializeLocationManager");
         if (mLocationManager == null) {

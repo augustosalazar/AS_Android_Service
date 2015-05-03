@@ -20,6 +20,7 @@ import android.widget.TextView;
 
 public class MainActivity extends ActionBarActivity implements  ServiceConnection{
 
+    private static final String TAG = MainActivity.class.getSimpleName();
     Intent mIntent;
     TextView textLat;
     TextView textLong;
@@ -33,7 +34,7 @@ public class MainActivity extends ActionBarActivity implements  ServiceConnectio
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Log.d("MAIN", "onCreate");
+        Log.d(TAG, "onCreate");
         textLat = (TextView) findViewById(R.id.textViewLat);
         textLong = (TextView) findViewById(R.id.textViewLong);
         textStatus = (TextView) findViewById(R.id.textViewStatus);
@@ -128,6 +129,16 @@ public class MainActivity extends ActionBarActivity implements  ServiceConnectio
     public void onServiceDisconnected(ComponentName name) {
         mServiceMessenger = null;
         textStatus.setText("Disconnected.");
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        try {
+            doUnbindService();
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed to unbind from the service", t);
+        }
     }
 
     /**
