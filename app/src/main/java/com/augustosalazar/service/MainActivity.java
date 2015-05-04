@@ -38,6 +38,28 @@ public class MainActivity extends ActionBarActivity implements  ServiceConnectio
         textLat = (TextView) findViewById(R.id.textViewLat);
         textLong = (TextView) findViewById(R.id.textViewLong);
         textStatus = (TextView) findViewById(R.id.textViewStatus);
+
+        automaticBind();
+    }
+
+    private void automaticBind() {
+        if (GpsService.isRunning()) {
+            doBindService();
+        }
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        if (savedInstanceState != null) {
+            textStatus.setText(savedInstanceState.getString("textStatus"));
+        }
+        super.onRestoreInstanceState(savedInstanceState);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString("textStatus", textStatus.getText().toString());
     }
 
 

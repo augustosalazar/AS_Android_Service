@@ -34,6 +34,7 @@ public class GpsService extends Service{
     public static final int MSG_SET_INT_VALUE = 3;
     public static final int MSG_SET_STRING_VALUE = 4;
     private int counter = 0, incrementBy = 1;
+    private static boolean isRunning = false;
 
 
     private class LocationListener implements android.location.LocationListener{
@@ -42,10 +43,7 @@ public class GpsService extends Service{
 
         public LocationListener(String provider)
         {
-            Log.e(TAG, "LocationListener " + provider);
             mLastLocation = new Location(provider);
-            //sendMessageToUI(value);
-            //value = value + 1;
         }
         @Override
         public void onLocationChanged(Location location)
@@ -57,19 +55,19 @@ public class GpsService extends Service{
         @Override
         public void onProviderDisabled(String provider)
         {
-            Log.e(TAG, "onProviderDisabled: " + provider);
+            //Log.e(TAG, "onProviderDisabled: " + provider);
         }
         @Override
         public void onProviderEnabled(String provider)
         {
-            Log.e(TAG, "onProviderEnabled: " + provider);
+            //Log.e(TAG, "onProviderEnabled: " + provider);
             //sendMessageToUI(value);
             //value = value + 1;
         }
         @Override
         public void onStatusChanged(String provider, int status, Bundle extras)
         {
-            Log.e(TAG, "onStatusChanged: " + provider);
+            //Log.e(TAG, "onStatusChanged: " + provider);
             //sendMessageToUI(value);
             //value = value + 1;
         }
@@ -97,6 +95,7 @@ public class GpsService extends Service{
         Log.e(TAG, "onCreate");
         initializeLocationManager();
         showNotification();
+        isRunning = true;
 
         try {
             mLocationManager.requestLocationUpdates(
@@ -117,6 +116,12 @@ public class GpsService extends Service{
             Log.d(TAG, "gps provider does not exist " + ex.getMessage());
         }
     }
+
+    public static boolean isRunning()
+    {
+        return isRunning;
+    }
+
     @Override
     public void onDestroy()
     {
@@ -132,6 +137,7 @@ public class GpsService extends Service{
             }
         }
         mNotificationManager.cancel(R.mipmap.ic_launcher); // Cancel the persistent notification
+        isRunning = false;
     }
 
     private void showNotification() {
