@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -16,11 +17,17 @@ import android.os.Messenger;
 import android.os.RemoteException;
 import android.util.Log;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class GpsService extends Service{
+public class GpsService extends Service {
 
     private NotificationManager mNotificationManager;
     private static final String TAG = GpsService.class.getSimpleName();
@@ -35,67 +42,81 @@ public class GpsService extends Service{
     public static final int MSG_SET_STRING_VALUE = 4;
     private int counter = 0, incrementBy = 1;
     private static boolean isRunning = false;
+    Notification notification;
 
 
-    private class LocationListener implements android.location.LocationListener{
+    private static final String FILE_HEADER = "TIMESTAMP,LAT,LONG,ALT,SPEED";
+    public static final String FILE_PATH_ROOT = Environment.getExternalStorageDirectory().getPath();
+    public static final String APP_FOLDER_NAME = "/ServiceTest/";
+    public static final String APP_FOLDER_PATH = FILE_PATH_ROOT
+            + APP_FOLDER_NAME;
+    private File mValidationFile;
+    private BufferedWriter mValidationWriter;
+    private StringBuilder mStringValidation;
+
+
+
+    private class LocationListener implements android.location.LocationListener {
         Location mLastLocation;
         int value = 0;
 
-        public LocationListener(String provider)
-        {
+        public LocationListener(String provider) {
             mLastLocation = new Location(provider);
         }
+
         @Override
-        public void onLocationChanged(Location location)
-        {
+        public void onLocationChanged(Location location) {
             Log.e(TAG, "onLocationChanged: " + location);
             mLastLocation.set(location);
-            sendMessageToUI(location.getLatitude(),location.getLongitude());
+            sendMessageToUI(location.getLatitude(), location.getLongitude());
+            counter = counter + 1;
+            updateNotification();
+            writeToFile(location);
+
         }
+
         @Override
-        public void onProviderDisabled(String provider)
-        {
-            //Log.e(TAG, "onProviderDisabled: " + provider);
+        public void onProviderDisabled(String provider) {
+
         }
+
         @Override
-        public void onProviderEnabled(String provider)
-        {
-            //Log.e(TAG, "onProviderEnabled: " + provider);
-            //sendMessageToUI(value);
-            //value = value + 1;
+        public void onProviderEnabled(String provider) {
+
         }
+
         @Override
-        public void onStatusChanged(String provider, int status, Bundle extras)
-        {
-            //Log.e(TAG, "onStatusChanged: " + provider);
-            //sendMessageToUI(value);
-            //value = value + 1;
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+
         }
     }
-    LocationListener[] mLocationListeners = new LocationListener[] {
+
+    LocationListener[] mLocationListeners = new LocationListener[]{
             new LocationListener(LocationManager.GPS_PROVIDER),
             new LocationListener(LocationManager.NETWORK_PROVIDER)
     };
+
     @Override
-    public IBinder onBind(Intent arg0)
-    {
+    public IBinder onBind(Intent arg0) {
         Log.i(TAG, "onBind");
         return mMessenger.getBinder();
     }
+
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId)
-    {
+    public int onStartCommand(Intent intent, int flags, int startId) {
         Log.e(TAG, "onStartCommand");
         super.onStartCommand(intent, flags, startId);
         return START_STICKY;
     }
+
     @Override
-    public void onCreate()
-    {
+    public void onCreate() {
         Log.e(TAG, "onCreate");
         initializeLocationManager();
         showNotification();
+        initFile();
         isRunning = true;
+        counter = 0;
 
         try {
             mLocationManager.requestLocationUpdates(
@@ -117,14 +138,80 @@ public class GpsService extends Service{
         }
     }
 
-    public static boolean isRunning()
-    {
+
+    private void initFile(){
+        String fileName;
+
+        fileName = APP_FOLDER_PATH + "FINAL_RAW_DATA.csv";
+        mValidationFile = new File(fileName);
+
+        if (!mValidationFile.exists()) {
+            try {
+                mValidationFile.getParentFile().mkdirs();
+                mValidationFile.createNewFile();
+                mValidationWriter = new BufferedWriter(new FileWriter(
+                        mValidationFile));
+                Log.d(TAG, "New VALIDATION file created OK!");
+            } catch (IOException e) {
+                Log.d(TAG, "Error at creating " + fileName);
+                e.printStackTrace();
+            }
+        } else {
+            try {
+                mValidationWriter = new BufferedWriter(new FileWriter(
+                        mValidationFile, true));
+            } catch (IOException e) {
+                Log.d(TAG, "Error at opening " + fileName);
+                e.printStackTrace();
+            }
+            Log.d(TAG, "VALIDATION file opened succesfully!");
+        }
+    }
+
+    private void writeToFile(Location location){
+        if (mStringValidation == null)
+            mStringValidation = new StringBuilder();
+
+        mStringValidation.setLength(0);
+        mStringValidation.append(String.valueOf(System.currentTimeMillis()));
+        mStringValidation.append("," + String.valueOf(location.getLatitude()));
+        mStringValidation.append("," + String.valueOf(location.getLongitude()));
+        mStringValidation.append("," + String.valueOf(location.getAltitude()));
+        mStringValidation.append("," + String.valueOf(location.getSpeed()));
+
+        try {
+            if (mValidationWriter != null) {
+                mValidationWriter.newLine();
+                mValidationWriter.write(mStringValidation.toString());
+            }
+        } catch (IOException e) {
+            Log.d(TAG,
+                    "Error at writing in VALIDATION: "
+                            + mStringValidation.toString());
+            e.printStackTrace();
+        }
+    }
+
+    public void closeFile(){
+
+        if (mValidationWriter != null) {
+            try {
+                mValidationWriter.close();
+                mValidationWriter = null;
+            } catch (IOException e) {
+                Log.d(TAG, "Error at closing LOCATION BufferedWriter");
+                e.printStackTrace();
+            }
+        }
+    }
+
+
+    public static boolean isRunning() {
         return isRunning;
     }
 
     @Override
-    public void onDestroy()
-    {
+    public void onDestroy() {
         Log.e(TAG, "onDestroy");
         super.onDestroy();
         if (mLocationManager != null) {
@@ -138,18 +225,26 @@ public class GpsService extends Service{
         }
         mNotificationManager.cancel(R.mipmap.ic_launcher); // Cancel the persistent notification
         isRunning = false;
+        closeFile();
     }
 
     private void showNotification() {
         mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         // Set the icon, scrolling text and timestamp
-        Notification notification = new Notification(R.mipmap.ic_launcher, "Servicio Iniciado", System.currentTimeMillis());
+        notification = new Notification(R.mipmap.ic_launcher, "Servicio Iniciado", System.currentTimeMillis());
         // The PendingIntent to launch our activity if the user selects this notification
         PendingIntent contentIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
         // Set the info for the views that show in the notification panel.
         notification.setLatestEventInfo(this, "Service", "Servicio Iniciado", contentIntent);
         // Send the notification.
         // We use a layout id because it is a unique number.  We use it later to cancel.
+        mNotificationManager.notify(R.mipmap.ic_launcher, notification);
+
+    }
+
+    private void updateNotification() {
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
+        notification.setLatestEventInfo(this, "Service", "Servicio Iniciado " + counter, contentIntent);
         mNotificationManager.notify(R.mipmap.ic_launcher, notification);
     }
 
@@ -161,10 +256,10 @@ public class GpsService extends Service{
     }
 
 
-    private void sendMessageToUI(double lat,double longi) {
+    private void sendMessageToUI(double lat, double longi) {
         Log.d(TAG, "Sending");
         Iterator<Messenger> messengerIterator = mClients.iterator();
-        while(messengerIterator.hasNext()) {
+        while (messengerIterator.hasNext()) {
             Messenger messenger = messengerIterator.next();
             try {
                 // Send data as an Integer
@@ -172,8 +267,8 @@ public class GpsService extends Service{
 
                 // Send data as a String
                 Bundle bundle = new Bundle();
-                bundle.putString("lat",lat+"");
-                bundle.putString("long",longi+"");
+                bundle.putString("lat", lat + "");
+                bundle.putString("long", longi + "");
                 Message msg = Message.obtain(null, MSG_SET_STRING_VALUE);
                 msg.setData(bundle);
                 messenger.send(msg);
@@ -181,7 +276,7 @@ public class GpsService extends Service{
                 Log.d(TAG, "Send Ok");
             } catch (RemoteException e) {
                 // The client is dead. Remove it from the list.
-                Log.d(TAG,"The client is dead. Remove it from the list.");
+                Log.d(TAG, "The client is dead. Remove it from the list.");
                 mClients.remove(messenger);
             }
         }
@@ -194,7 +289,7 @@ public class GpsService extends Service{
     private class IncomingMessageHandler extends Handler { // Handler of incoming messages from clients.
         @Override
         public void handleMessage(Message msg) {
-            Log.d(TAG,"handleMessage: " + msg.what);
+            Log.d(TAG, "handleMessage: " + msg.what);
             switch (msg.what) {
                 case MSG_REGISTER_CLIENT:
                     mClients.add(msg.replyTo);

@@ -163,6 +163,16 @@ public class MainActivity extends ActionBarActivity implements  ServiceConnectio
         }
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        try {
+            doUnbindService();
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed to unbind from the service", t);
+        }
+    }
+
     /**
      * Handle incoming messages from MyService
      */
